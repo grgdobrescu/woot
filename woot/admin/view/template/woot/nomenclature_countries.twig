@@ -1,0 +1,192 @@
+{{ header }}{{ column_left }}
+<div id="content">
+    <div class="page-header">
+        <div class="container-fluid">
+            <div class="float-end">
+                <button type="button" id="button-sync" class="btn btn-primary" data-url="{{ sync_url }}">
+                    <i class="fa-solid fa-sync"></i> {{ button_sync }}
+                </button>
+                <button type="button" id="button-auto-map" class="btn btn-info" data-url="{{ auto_map_url }}">
+                    <i class="fa-solid fa-magic"></i> {{ button_auto_map }}
+                </button>
+            </div>
+            <h1>{{ heading_title_countries }}</h1>
+            <ol class="breadcrumb">
+                {% for breadcrumb in breadcrumbs %}
+                <li class="breadcrumb-item"><a href="{{ breadcrumb.href }}">{{ breadcrumb.text }}</a></li>
+                {% endfor %}
+            </ol>
+        </div>
+    </div>
+    <div class="container-fluid">
+        <div class="card">
+            <div class="card-header">
+                <i class="fa-solid fa-globe"></i> {{ heading_title_countries }}
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="fa-solid fa-info-circle"></i> {{ text_sync_hint }}
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover">
+                        <thead>
+                            <tr>
+                                <td class="text-center" style="width: 80px;">{{ column_woot_id }}</td>
+                                <td class="text-start">{{ column_name }}</td>
+                                <td class="text-center" style="width: 60px;">{{ column_code }}</td>
+                                <td class="text-center" style="width: 80px;">{{ column_favorite }}</td>
+                                <td class="text-center" style="width: 60px;">{{ column_eu }}</td>
+                                <td class="text-center" style="width: 100px;">{{ column_counties_count }}</td>
+                                <td class="text-center" style="width: 100px;">{{ column_cities_count }}</td>
+                                <td class="text-center" style="width: 100px;">{{ column_locations_count }}</td>
+                                <td class="text-start" style="width: 250px;">{{ column_oc_country }}</td>
+                                <td class="text-center" style="width: 120px;">{{ column_action }}</td>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if woot_countries %}
+                            {% for country in woot_countries %}
+                            <tr>
+                                <td class="text-center">{{ country.woot_country_id }}</td>
+                                <td class="text-start">{{ country.name }}</td>
+                                <td class="text-center"><span class="badge bg-secondary">{{ country.code }}</span></td>
+                                <td class="text-center">
+                                    {% if country.favorite %}
+                                    <span class="badge bg-warning"><i class="fa-solid fa-star"></i></span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if country.eu %}
+                                    <span class="badge bg-primary">EU</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">{{ country.counties_count }}</td>
+                                <td class="text-center">{{ country.cities_count }}</td>
+                                <td class="text-center">{{ country.locations_count }}</td>
+                                <td class="text-start">
+                                    <select class="form-select form-select-sm country-mapping"
+                                            data-woot-country-id="{{ country.woot_country_id }}"
+                                            data-save-url="{{ save_mapping_url }}">
+                                        <option value="">{{ text_not_mapped }}</option>
+                                        {% for oc_country in oc_countries %}
+                                        <option value="{{ oc_country.country_id }}"{% if country.oc_country_id == oc_country.country_id %} selected{% endif %}>
+                                            {{ oc_country.name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                                <td class="text-center">
+                                    {% if country.has_counties %}
+                                    <a href="{{ counties_url }}&woot_country_id={{ country.woot_country_id }}" class="btn btn-sm btn-outline-primary" title="{{ button_view_counties }}">
+                                        <i class="fa-solid fa-map"></i>
+                                    </a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            {% else %}
+                            <tr>
+                                <td class="text-center" colspan="10">{{ text_no_results }}</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="row">
+                    <div class="col-sm-6 text-start">{{ pagination }}</div>
+                    <div class="col-sm-6 text-end">{{ results }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    // Sync countries
+    $('#button-sync').on('click', function() {
+        var button = $(this);
+        var url = button.data('url');
+
+        button.prop('disabled', true).find('i').removeClass('fa-sync').addClass('fa-spinner fa-spin');
+
+        $.ajax({
+            url: url,
+            type: 'POST',
+            dataType: 'json',
+            success: function(json) {
+                if (json.success) {
+                    alert(json.success);
+                    location.reload();
+                }
+                if (json.error) {
+                    alert(json.error);
+                }
+            },
+            error: function() {
+                alert('Error communicating with server');
+            },
+            complete: function() {
+                button.prop('disabled', false).find('i').removeClass('fa-spinner fa-spin').addClass('fa-sync');
+            }
+        });
+    });
+
+    // Auto-map countries
+    $('#button-auto-map').on('click', function() {
+        var button = $(this);
+        var url = button.data('url');
+
+        button.prop('disabled', true).find('i').removeClass('fa-magic').addClass('fa-spinner fa-spin');
+
+        $.ajax({
+            url: url,
+            type: 'POST',
+            dataType: 'json',
+            success: function(json) {
+                if (json.success) {
+                    alert(json.success);
+                    location.reload();
+                }
+                if (json.error) {
+                    alert(json.error);
+                }
+            },
+            error: function() {
+                alert('Error communicating with server');
+            },
+            complete: function() {
+                button.prop('disabled', false).find('i').removeClass('fa-spinner fa-spin').addClass('fa-magic');
+            }
+        });
+    });
+
+    // Save country mapping on change
+    $('.country-mapping').on('change', function() {
+        var select = $(this);
+        var url = select.data('save-url');
+        var woot_country_id = select.data('woot-country-id');
+        var oc_country_id = select.val();
+
+        $.ajax({
+            url: url,
+            type: 'POST',
+            data: {
+                woot_country_id: woot_country_id,
+                oc_country_id: oc_country_id
+            },
+            dataType: 'json',
+            success: function(json) {
+                if (json.error) {
+                    alert(json.error);
+                }
+            },
+            error: function() {
+                alert('Error saving mapping');
+            }
+        });
+    });
+});
+</script>
+{{ footer }}

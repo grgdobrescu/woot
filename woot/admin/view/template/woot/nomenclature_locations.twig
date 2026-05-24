@@ -1,0 +1,221 @@
+{{ header }}{{ column_left }}
+<div id="content">
+    <div class="page-header">
+        <div class="container-fluid">
+            <div class="float-end">
+                <button type="button" id="button-sync" class="btn btn-primary" data-url="{{ sync_url }}"{% if not woot_country_id %} disabled{% endif %}>
+                    <i class="fa-solid fa-sync"></i> {{ button_sync }}
+                </button>
+            </div>
+            <h1>{{ heading_title_locations }}</h1>
+            <ol class="breadcrumb">
+                {% for breadcrumb in breadcrumbs %}
+                <li class="breadcrumb-item"><a href="{{ breadcrumb.href }}">{{ breadcrumb.text }}</a></li>
+                {% endfor %}
+            </ol>
+        </div>
+    </div>
+    <div class="container-fluid">
+        <div class="card">
+            <div class="card-header">
+                <i class="fa-solid fa-location-dot"></i> {{ heading_title_locations }}
+            </div>
+            <div class="card-body">
+                {% if woot_countries %}
+                <div class="row mb-3">
+                    <div class="col-md-3">
+                        <label class="form-label">{{ entry_woot_country }}</label>
+                        <select id="filter-country" class="form-select">
+                            <option value="">{{ text_select_country }}</option>
+                            {% for country in woot_countries %}
+                            <option value="{{ country.woot_country_id }}"{% if woot_country_id == country.woot_country_id %} selected{% endif %}>
+                                {{ country.name }} ({{ country.code }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">{{ entry_woot_county }}</label>
+                        <select id="filter-county" class="form-select"{% if not woot_country_id %} disabled{% endif %}>
+                            <option value="">{{ text_all }}</option>
+                            {% for county in woot_counties %}
+                            <option value="{{ county.woot_county_id }}"{% if woot_county_id == county.woot_county_id %} selected{% endif %}>
+                                {{ county.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">{{ entry_woot_city }}</label>
+                        <select id="filter-city" class="form-select"{% if not woot_county_id %} disabled{% endif %}>
+                            <option value="">{{ text_all }}</option>
+                            {% for city in woot_cities %}
+                            <option value="{{ city.woot_city_id }}"{% if woot_city_id == city.woot_city_id %} selected{% endif %}>
+                                {{ city.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">{{ entry_type }}</label>
+                        <select id="filter-type" class="form-select">
+                            <option value="">{{ text_all }}</option>
+                            <option value="locker"{% if type == 'locker' %} selected{% endif %}>{{ text_locker }}</option>
+                            <option value="shop"{% if type == 'shop' %} selected{% endif %}>{{ text_shop }}</option>
+                        </select>
+                    </div>
+                </div>
+
+                {% if woot_country_id %}
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover table-sm">
+                        <thead>
+                            <tr>
+                                <td class="text-center" style="width: 70px;">{{ column_woot_id }}</td>
+                                <td class="text-start">{{ column_name }}</td>
+                                <td class="text-center" style="width: 80px;">{{ column_type }}</td>
+                                <td class="text-start" style="width: 120px;">{{ column_courier }}</td>
+                                <td class="text-start" style="width: 100px;">{{ column_county }}</td>
+                                <td class="text-start" style="width: 100px;">{{ column_city }}</td>
+                                <td class="text-start">{{ column_address }}</td>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if woot_locations %}
+                            {% for location in woot_locations %}
+                            <tr>
+                                <td class="text-center">{{ location.woot_location_id }}</td>
+                                <td class="text-start">{{ location.name }}</td>
+                                <td class="text-center">
+                                    {% if location.type == 'locker' %}
+                                    <span class="badge bg-info">{{ text_locker }}</span>
+                                    {% else %}
+                                    <span class="badge bg-success">{{ text_shop }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-start">{{ location.courier_name }}</td>
+                                <td class="text-start">{{ location.county_name }}</td>
+                                <td class="text-start">{{ location.city_name }}</td>
+                                <td class="text-start">{{ location.address }}</td>
+                            </tr>
+                            {% endfor %}
+                            {% else %}
+                            <tr>
+                                <td class="text-center" colspan="7">{{ text_no_results }}</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="row">
+                    <div class="col-sm-6 text-start">{{ pagination }}</div>
+                    <div class="col-sm-6 text-end">{{ results }}</div>
+                </div>
+                {% else %}
+                <div class="alert alert-warning">
+                    <i class="fa-solid fa-exclamation-triangle"></i> {{ text_select_country }}
+                </div>
+                {% endif %}
+                {% else %}
+                <div class="alert alert-warning">
+                    <i class="fa-solid fa-exclamation-triangle"></i> {{ text_no_synced_cities|format(cities_url)|raw }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    var userToken = '{{ user_token }}';
+
+    // Filter by country
+    $('#filter-country').on('change', function() {
+        var countryId = $(this).val();
+
+        if (countryId) {
+            window.location.href = 'index.php?route=extension/woot/woot/nomenclature.locations&user_token=' + userToken + '&woot_country_id=' + countryId;
+        } else {
+            window.location.href = 'index.php?route=extension/woot/woot/nomenclature.locations&user_token=' + userToken;
+        }
+    });
+
+    // Filter by county
+    $('#filter-county').on('change', function() {
+        var countryId = $('#filter-country').val();
+        var countyId = $(this).val();
+
+        var url = 'index.php?route=extension/woot/woot/nomenclature.locations&user_token=' + userToken + '&woot_country_id=' + countryId;
+        if (countyId) url += '&woot_county_id=' + countyId;
+
+        window.location.href = url;
+    });
+
+    // Filter by city
+    $('#filter-city').on('change', function() {
+        var countryId = $('#filter-country').val();
+        var countyId = $('#filter-county').val();
+        var cityId = $(this).val();
+
+        var url = 'index.php?route=extension/woot/woot/nomenclature.locations&user_token=' + userToken + '&woot_country_id=' + countryId;
+        if (countyId) url += '&woot_county_id=' + countyId;
+        if (cityId) url += '&woot_city_id=' + cityId;
+
+        window.location.href = url;
+    });
+
+    // Filter by type
+    $('#filter-type').on('change', function() {
+        var countryId = $('#filter-country').val();
+        var countyId = $('#filter-county').val();
+        var cityId = $('#filter-city').val();
+        var type = $(this).val();
+
+        var url = 'index.php?route=extension/woot/woot/nomenclature.locations&user_token=' + userToken;
+        if (countryId) url += '&woot_country_id=' + countryId;
+        if (countyId) url += '&woot_county_id=' + countyId;
+        if (cityId) url += '&woot_city_id=' + cityId;
+        if (type) url += '&type=' + type;
+
+        window.location.href = url;
+    });
+
+    // Sync locations
+    $('#button-sync').on('click', function() {
+        var button = $(this);
+        var url = button.data('url');
+        var countryId = $('#filter-country').val();
+
+        if (!countryId) {
+            alert('{{ error_country_required }}');
+            return;
+        }
+
+        button.prop('disabled', true).find('i').removeClass('fa-sync').addClass('fa-spinner fa-spin');
+
+        $.ajax({
+            url: url,
+            type: 'POST',
+            data: { woot_country_id: countryId },
+            dataType: 'json',
+            success: function(json) {
+                if (json.success) {
+                    alert(json.success);
+                    location.reload();
+                }
+                if (json.error) {
+                    alert(json.error);
+                }
+            },
+            error: function() {
+                alert('Error communicating with server');
+            },
+            complete: function() {
+                button.prop('disabled', false).find('i').removeClass('fa-spinner fa-spin').addClass('fa-sync');
+            }
+        });
+    });
+});
+</script>
+{{ footer }}

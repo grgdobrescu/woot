@@ -1,0 +1,54 @@
+{{ header }}{{ column_left }}
+<div id="content">
+  <div class="page-header">
+    <div class="container-fluid">
+      <div class="float-end">
+        <button type="submit" form="form-settings" class="btn btn-primary"><i class="fa-solid fa-save"></i></button>
+        <a href="{{ back }}" class="btn btn-light"><i class="fa-solid fa-reply"></i></a>
+      </div>
+      <h1>{{ heading_title }}</h1>
+      <ol class="breadcrumb">
+        {% for breadcrumb in breadcrumbs %}
+          <li class="breadcrumb-item"><a href="{{ breadcrumb.href }}">{{ breadcrumb.text }}</a></li>
+        {% endfor %}
+      </ol>
+    </div>
+  </div>
+  <div class="container-fluid">
+    <div class="card">
+      <div class="card-header"><i class="fa-solid fa-cog"></i> {{ text_general_settings }}</div>
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fa-solid fa-info-circle"></i> {{ text_coming_soon }}
+        </div>
+        {# TODO: Implement general settings form #}
+        {#
+        <form id="form-settings" action="{{ save }}" method="post" data-oc-toggle="ajax">
+          <fieldset>
+            <legend>{{ text_default_parcel }}</legend>
+            <div class="row mb-3">
+              <label class="col-sm-2 col-form-label">{{ entry_default_weight }}</label>
+              <div class="col-sm-10">
+                <input type="number" name="woot_default_weight" value="{{ woot_default_weight }}" class="form-control" step="0.01"/>
+                <div class="form-text">{{ help_default_weight }}</div>
+              </div>
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend>{{ text_notifications }}</legend>
+            <div class="row mb-3">
+              <label class="col-sm-2 col-form-label">{{ entry_notify_customer }}</label>
+              <div class="col-sm-10">
+                <div class="form-check form-switch">
+                  <input type="checkbox" name="woot_notify_customer" value="1" class="form-check-input"{% if woot_notify_customer %} checked{% endif %}/>
+                </div>
+              </div>
+            </div>
+          </fieldset>
+        </form>
+        #}
+      </div>
+    </div>
+  </div>
+</div>
+{{ footer }}

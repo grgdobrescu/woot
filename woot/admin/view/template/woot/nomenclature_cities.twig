@@ -1,0 +1,187 @@
+{{ header }}{{ column_left }}
+<div id="content">
+    <div class="page-header">
+        <div class="container-fluid">
+            <div class="float-end">
+                <button type="button" id="button-sync" class="btn btn-primary" data-url="{{ sync_url }}"{% if not woot_country_id %} disabled{% endif %}>
+                    <i class="fa-solid fa-sync"></i> {{ button_sync }}
+                </button>
+            </div>
+            <h1>{{ heading_title_cities }}</h1>
+            <ol class="breadcrumb">
+                {% for breadcrumb in breadcrumbs %}
+                <li class="breadcrumb-item"><a href="{{ breadcrumb.href }}">{{ breadcrumb.text }}</a></li>
+                {% endfor %}
+            </ol>
+        </div>
+    </div>
+    <div class="container-fluid">
+        <div class="card">
+            <div class="card-header">
+                <i class="fa-solid fa-city"></i> {{ heading_title_cities }}
+            </div>
+            <div class="card-body">
+                {% if woot_countries %}
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label">{{ entry_woot_country }}</label>
+                        <select id="filter-country" class="form-select">
+                            <option value="">{{ text_select_country }}</option>
+                            {% for country in woot_countries %}
+                            <option value="{{ country.woot_country_id }}"{% if woot_country_id == country.woot_country_id %} selected{% endif %}>
+                                {{ country.name }} ({{ country.code }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">{{ entry_woot_county }}</label>
+                        <select id="filter-county" class="form-select"{% if not woot_country_id %} disabled{% endif %}>
+                            <option value="">{{ text_all_counties }}</option>
+                            {% for county in woot_counties %}
+                            <option value="{{ county.woot_county_id }}"{% if woot_county_id == county.woot_county_id %} selected{% endif %}>
+                                {{ county.name }} ({{ county.code }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                {% if woot_country_id %}
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover">
+                        <thead>
+                            <tr>
+                                <td class="text-center" style="width: 80px;">{{ column_woot_id }}</td>
+                                <td class="text-start">{{ column_name }}</td>
+                                <td class="text-start" style="width: 150px;">{{ column_county }}</td>
+                                <td class="text-center" style="width: 180px;">{{ column_date_synced }}</td>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if woot_cities %}
+                            {% for city in woot_cities %}
+                            <tr>
+                                <td class="text-center">{{ city.woot_city_id }}</td>
+                                <td class="text-start">{{ city.name }}</td>
+                                <td class="text-start">{{ city.county_name }}</td>
+                                <td class="text-center">{{ city.date_synced }}</td>
+                            </tr>
+                            {% endfor %}
+                            {% else %}
+                            <tr>
+                                <td class="text-center" colspan="4">{{ text_no_results }}</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="row">
+                    <div class="col-sm-6 text-start">{{ pagination }}</div>
+                    <div class="col-sm-6 text-end">{{ results }}</div>
+                </div>
+                {% else %}
+                <div class="alert alert-warning">
+                    <i class="fa-solid fa-exclamation-triangle"></i> {{ text_select_country }}
+                </div>
+                {% endif %}
+                {% else %}
+                <div class="alert alert-warning">
+                    <i class="fa-solid fa-exclamation-triangle"></i> {{ text_no_mapped_counties|format(counties_url)|raw }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    var userToken = '{{ user_token }}';
+    var getCountiesUrl = '{{ get_counties_url|raw }}';
+
+    // Filter by country
+    $('#filter-country').on('change', function() {
+        var countryId = $(this).val();
+
+        if (countryId) {
+            // Load counties for this country
+            $.ajax({
+                url: getCountiesUrl + '&woot_country_id=' + countryId,
+                type: 'GET',
+                dataType: 'json',
+                success: function(json) {
+                    var select = $('#filter-county');
+                    select.empty().append('<option value="">{{ text_all_counties }}</option>');
+
+                    if (json.counties && json.counties.length) {
+                        $.each(json.counties, function(index, county) {
+                            select.append('<option value="' + county.woot_county_id + '">' + county.name + ' (' + county.code + ')</option>');
+                        });
+                        select.prop('disabled', false);
+                    } else {
+                        select.prop('disabled', true);
+                    }
+                }
+            });
+
+            // Enable sync button and navigate to country view
+            $('#button-sync').prop('disabled', false);
+            window.location.href = 'index.php?route=extension/woot/woot/nomenclature.cities&user_token=' + userToken + '&woot_country_id=' + countryId;
+        } else {
+            $('#filter-county').empty().append('<option value="">{{ text_all_counties }}</option>').prop('disabled', true);
+            $('#button-sync').prop('disabled', true);
+            window.location.href = 'index.php?route=extension/woot/woot/nomenclature.cities&user_token=' + userToken;
+        }
+    });
+
+    // Filter by county
+    $('#filter-county').on('change', function() {
+        var countryId = $('#filter-country').val();
+        var countyId = $(this).val();
+
+        if (countyId) {
+            window.location.href = 'index.php?route=extension/woot/woot/nomenclature.cities&user_token=' + userToken + '&woot_country_id=' + countryId + '&woot_county_id=' + countyId;
+        } else {
+            window.location.href = 'index.php?route=extension/woot/woot/nomenclature.cities&user_token=' + userToken + '&woot_country_id=' + countryId;
+        }
+    });
+
+    // Sync cities (by country)
+    $('#button-sync').on('click', function() {
+        var button = $(this);
+        var url = button.data('url');
+        var countryId = $('#filter-country').val();
+
+        if (!countryId) {
+            alert('{{ error_country_required }}');
+            return;
+        }
+
+        button.prop('disabled', true).find('i').removeClass('fa-sync').addClass('fa-spinner fa-spin');
+
+        $.ajax({
+            url: url,
+            type: 'POST',
+            data: { woot_country_id: countryId },
+            dataType: 'json',
+            success: function(json) {
+                if (json.success) {
+                    alert(json.success);
+                    location.reload();
+                }
+                if (json.error) {
+                    alert(json.error);
+                }
+            },
+            error: function() {
+                alert('Error communicating with server');
+            },
+            complete: function() {
+                button.prop('disabled', false).find('i').removeClass('fa-spinner fa-spin').addClass('fa-sync');
+            }
+        });
+    });
+});
+</script>
+{{ footer }}

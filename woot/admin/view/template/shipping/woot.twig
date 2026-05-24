@@ -1,0 +1,446 @@
+{{ header }}{{ column_left }}
+<div id="content">
+  <div class="page-header">
+    <div class="container-fluid">
+      <div class="float-end">
+        {% if shipping_woot_connected %}
+        <button type="submit" form="form-shipping" data-bs-toggle="tooltip" title="{{ button_save }}" class="btn btn-primary"><i class="fa-solid fa-save"></i></button>
+        {% endif %}
+        <a href="{{ back }}" data-bs-toggle="tooltip" title="{{ button_back }}" class="btn btn-light"><i class="fa-solid fa-reply"></i></a>
+      </div>
+      <h1>{{ heading_title }}</h1>
+      <ol class="breadcrumb">
+        {% for breadcrumb in breadcrumbs %}
+          <li class="breadcrumb-item"><a href="{{ breadcrumb.href }}">{{ breadcrumb.text }}</a></li>
+        {% endfor %}
+      </ol>
+    </div>
+  </div>
+  <div class="container-fluid">
+    {% if not shipping_woot_connected %}
+    {# Connection Form #}
+    <div class="card">
+      <div class="card-header"><i class="fa-solid fa-plug"></i> {{ text_connect }}</div>
+      <div class="card-body">
+        <form id="form-connect">
+          <div class="row mb-3">
+            <label for="input-public-key" class="col-sm-2 col-form-label">{{ entry_public_key }}</label>
+            <div class="col-sm-10">
+              <input type="text" name="shipping_woot_public_key" value="{{ shipping_woot_public_key }}" placeholder="{{ entry_public_key }}" id="input-public-key" class="form-control"/>
+              <div class="form-text">{{ help_public_key }}</div>
+            </div>
+          </div>
+          <div class="row mb-3">
+            <label for="input-secret-key" class="col-sm-2 col-form-label">{{ entry_secret_key }}</label>
+            <div class="col-sm-10">
+              <input type="text" name="shipping_woot_secret_key" value="{{ shipping_woot_secret_key }}" placeholder="{{ entry_secret_key }}" id="input-secret-key" class="form-control"/>
+              <div class="form-text">{{ help_secret_key }}</div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-sm-10 offset-sm-2">
+              <button type="button" id="button-connect" data-url="{{ connect }}" class="btn btn-primary"><i class="fa-solid fa-plug"></i> {{ button_connect }}</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+    {% else %}
+    {# Connected - Show Settings #}
+    <div class="card mb-3">
+      <div class="card-header"><i class="fa-solid fa-circle-check text-success"></i> {{ text_connected }}</div>
+      <div class="card-body">
+        <div class="row align-items-center">
+          <div class="col-sm-10">
+            <p class="mb-0">{{ text_connected_as|replace({'%s': shipping_woot_public_key}) }}</p>
+          </div>
+          <div class="col-sm-2 text-end">
+            <button type="button" id="button-disconnect" data-url="{{ disconnect }}" class="btn btn-danger btn-sm"><i class="fa-solid fa-plug-circle-xmark"></i> {{ button_disconnect }}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card mb-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="fa-solid fa-location-dot"></i> {{ text_sender_address }} <span class="text-danger">*</span></span>
+        <span>
+          <button type="button" id="button-reload-addresses" class="btn btn-light btn-sm"><i class="fa-solid fa-rotate"></i></button>
+          <a href="https://pro.woot.ro/addresses/sender" target="_blank" class="btn btn-outline-primary btn-sm"><i class="fa-solid fa-external-link"></i> {{ button_manage }}</a>
+        </span>
+      </div>
+      <div class="card-body">
+        <div id="sender-loading" class="text-center py-4">
+          <i class="fa-solid fa-spinner fa-spin fa-2x"></i>
+          <p class="mt-2">{{ text_loading_addresses }}</p>
+        </div>
+        <div id="sender-error" class="alert alert-danger d-none"></div>
+        <div id="sender-container" class="d-none" data-url="{{ sender_addresses_url }}">
+          <div class="row mb-3">
+            <label for="select-sender-address" class="col-sm-2 col-form-label">{{ entry_sender_address }} <span class="text-danger">*</span></label>
+            <div class="col-sm-10">
+              <select id="select-sender-address" class="form-select" required>
+                <option value="">{{ text_select_address }}</option>
+              </select>
+              <div class="form-text">{{ help_sender_address }}</div>
+            </div>
+          </div>
+          <div id="sender-address-preview" class="d-none mt-3">
+            <div class="card">
+              <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="fa-solid fa-building"></i> <strong id="sender-company-name"></strong></span>
+                <span class="badge bg-secondary" id="sender-country-badge"></span>
+              </div>
+              <div class="card-body">
+                <div class="row">
+                  <div class="col-md-6">
+                    <div class="mb-2" id="sender-contact-row">
+                      <i class="fa-solid fa-user text-muted me-2"></i>
+                      <span id="sender-contact"></span>
+                    </div>
+                    <div class="mb-2" id="sender-phone-row">
+                      <i class="fa-solid fa-phone text-muted me-2"></i>
+                      <span id="sender-phone"></span>
+                    </div>
+                    <div id="sender-email-row">
+                      <i class="fa-solid fa-envelope text-muted me-2"></i>
+                      <span id="sender-email"></span>
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="mb-2" id="sender-address-row">
+                      <i class="fa-solid fa-location-dot text-muted me-2"></i>
+                      <span id="sender-address"></span>
+                    </div>
+                    <div id="sender-location-row">
+                      <i class="fa-solid fa-map text-muted me-2"></i>
+                      <span id="sender-location"></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card mb-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="fa-solid fa-box"></i> {{ text_default_parcel }} <span class="text-danger">*</span></span>
+        <span>
+          <button type="button" id="button-reload-parcels" class="btn btn-light btn-sm"><i class="fa-solid fa-rotate"></i></button>
+          <a href="https://pro.woot.ro/account/parcels" target="_blank" class="btn btn-outline-primary btn-sm"><i class="fa-solid fa-external-link"></i> {{ button_manage }}</a>
+        </span>
+      </div>
+      <div class="card-body">
+        <div id="parcel-loading" class="text-center py-4">
+          <i class="fa-solid fa-spinner fa-spin fa-2x"></i>
+          <p class="mt-2">{{ text_loading_parcels }}</p>
+        </div>
+        <div id="parcel-error" class="alert alert-danger d-none"></div>
+        <div id="parcel-container" class="d-none" data-url="{{ parcels_url }}">
+          <div class="row mb-3">
+            <label for="select-default-parcel" class="col-sm-2 col-form-label">{{ entry_default_parcel }} <span class="text-danger">*</span></label>
+            <div class="col-sm-10">
+              <select id="select-default-parcel" class="form-select" required>
+                <option value="">{{ text_select_parcel }}</option>
+              </select>
+              <div class="form-text">{{ help_default_parcel }}</div>
+            </div>
+          </div>
+          <div id="parcel-preview" class="d-none mt-3">
+            <div class="card">
+              <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="fa-solid fa-box"></i> <strong id="parcel-name"></strong></span>
+                <span class="badge bg-secondary" id="parcel-type-badge"></span>
+              </div>
+              <div class="card-body">
+                <div class="row">
+                  <div class="col-md-6">
+                    <div class="mb-2" id="parcel-dimensions-row">
+                      <i class="fa-solid fa-ruler-combined text-muted me-2"></i>
+                      <span id="parcel-dimensions"></span>
+                    </div>
+                    <div id="parcel-weight-row">
+                      <i class="fa-solid fa-weight-hanging text-muted me-2"></i>
+                      <span id="parcel-weight"></span>
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="mb-2" id="parcel-content-row">
+                      <i class="fa-solid fa-box-open text-muted me-2"></i>
+                      <span id="parcel-content"></span>
+                    </div>
+                    <div id="parcel-favorite-row">
+                      <i class="fa-solid fa-star text-muted me-2"></i>
+                      <span id="parcel-favorite"></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card mb-3">
+      <div class="card-header"><i class="fa-solid fa-truck"></i> {{ text_services }}</div>
+      <div class="card-body">
+        <div id="services-loading" class="text-center py-4">
+          <i class="fa-solid fa-spinner fa-spin fa-2x"></i>
+          <p class="mt-2">{{ text_loading_services }}</p>
+        </div>
+        <div id="services-error" class="alert alert-danger d-none"></div>
+        <div id="services-container" class="d-none" data-url="{{ services_url }}">
+          <div class="row mb-4">
+            <div class="col-md-6">
+              <label class="form-label"><i class="fa-solid fa-house"></i> {{ text_delivery_home }}</label>
+              <select id="select-home-services" class="form-select">
+                <option value="">{{ text_select_service }}</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label"><i class="fa-solid fa-box"></i> {{ text_delivery_locker }}</label>
+              <select id="select-locker-services" class="form-select">
+                <option value="">{{ text_select_service }}</option>
+              </select>
+            </div>
+          </div>
+          <div id="selected-services">
+            <table class="table table-bordered" id="services-table">
+              <thead>
+                <tr>
+                  <th>{{ text_courier }}</th>
+                  <th>{{ text_service }}</th>
+                  <th width="200">{{ text_custom_name }}</th>
+                  <th>{{ text_pickup }}</th>
+                  <th>{{ text_delivery }}</th>
+                  <th width="120">{{ text_price_type }}</th>
+                  <th width="90">{{ text_markup_percent }}</th>
+                  <th width="90">{{ text_markup_fixed }}</th>
+                  <th width="90">{{ text_price }}</th>
+                  <th width="50"></th>
+                </tr>
+              </thead>
+              <tbody id="services-tbody">
+                <tr id="no-services-row">
+                  <td colspan="10" class="text-center text-muted">{{ text_no_services_selected }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <form id="form-shipping" action="{{ save }}" method="post" data-oc-toggle="ajax">
+      <input type="hidden" name="shipping_woot_services" id="input-services" value="{}"/>
+      <input type="hidden" name="shipping_woot_sender_address_id" id="input-sender-address" value="{{ shipping_woot_sender_address_id }}"/>
+      <input type="hidden" name="shipping_woot_default_parcel_id" id="input-default-parcel" value="{{ shipping_woot_default_parcel_id }}"/>
+      <div class="card mb-3">
+        <div class="card-header"><i class="fa-solid fa-envelope"></i> {{ text_shipped_settings }}</div>
+        <div class="card-body">
+          <div class="row mb-3">
+            <label for="input-shipped-status" class="col-sm-2 col-form-label">{{ entry_shipped_status }}</label>
+            <div class="col-sm-10">
+              <select name="shipping_woot_shipped_status_id" id="input-shipped-status" class="form-select">
+                <option value="0">{{ text_none }}</option>
+                {% for order_status in order_statuses %}
+                  <option value="{{ order_status.order_status_id }}"{% if order_status.order_status_id == shipping_woot_shipped_status_id %} selected{% endif %}>{{ order_status.name }}</option>
+                {% endfor %}
+              </select>
+              <div class="form-text">{{ help_shipped_status }}</div>
+            </div>
+          </div>
+          <div class="row mb-3">
+            <label for="input-shipped-message" class="col-sm-2 col-form-label">{{ entry_shipped_message }}</label>
+            <div class="col-sm-10">
+              <textarea name="shipping_woot_shipped_message" placeholder="{{ text_shipped_message_placeholder }}" id="input-shipped-message" rows="3" class="form-control">{{ shipping_woot_shipped_message }}</textarea>
+              <div class="form-text">{{ help_shipped_message }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card mb-3">
+        <div class="card-header"><i class="fa-solid fa-money-bill"></i> {{ text_repayment_settings }}</div>
+        <div class="card-body">
+          <div class="row mb-3">
+            <label class="col-sm-2 col-form-label">{{ entry_repayment_methods }}</label>
+            <div class="col-sm-10">
+              <select name="shipping_woot_repayment_methods[]" id="input-repayment-methods" class="form-select" multiple size="5">
+                {% for payment_method in payment_methods %}
+                <option value="{{ payment_method.code }}"{% if payment_method.code in shipping_woot_repayment_methods %} selected{% endif %}>{{ payment_method.name }}</option>
+                {% endfor %}
+              </select>
+              <div class="form-text">{{ help_repayment_methods }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card mb-3">
+        <div class="card-header"><i class="fa-solid fa-truck"></i> {{ text_shipping_settings }}</div>
+        <div class="card-body">
+          <div class="row mb-3">
+            <label class="col-sm-2 col-form-label">{{ entry_price_includes_vat }}</label>
+            <div class="col-sm-10">
+              <div class="form-check form-switch">
+                <input type="hidden" name="shipping_woot_price_includes_vat" value="0">
+                <input type="checkbox" name="shipping_woot_price_includes_vat" value="1" id="input-price-includes-vat" class="form-check-input"{% if shipping_woot_price_includes_vat %} checked{% endif %}>
+              </div>
+              <div class="form-text">{{ help_price_includes_vat }}</div>
+            </div>
+          </div>
+          <div class="row mb-3">
+            <label for="input-tax-class" class="col-sm-2 col-form-label">{{ entry_tax_class }}</label>
+            <div class="col-sm-10">
+              <select name="shipping_woot_tax_class_id" id="input-tax-class" class="form-select">
+                <option value="0">{{ text_none }}</option>
+                {% for tax_class in tax_classes %}
+                  <option value="{{ tax_class.tax_class_id }}"{% if tax_class.tax_class_id == shipping_woot_tax_class_id %} selected{% endif %}>{{ tax_class.title }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          <div class="row mb-3">
+            <label for="input-geo-zone" class="col-sm-2 col-form-label">{{ entry_geo_zone }}</label>
+            <div class="col-sm-10">
+              <select name="shipping_woot_geo_zone_id" id="input-geo-zone" class="form-select">
+                <option value="0">{{ text_all_zones }}</option>
+                {% for geo_zone in geo_zones %}
+                  <option value="{{ geo_zone.geo_zone_id }}"{% if geo_zone.geo_zone_id == shipping_woot_geo_zone_id %} selected{% endif %}>{{ geo_zone.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><i class="fa-solid fa-gear"></i> {{ text_general_settings }}</div>
+        <div class="card-body">
+          <div class="row mb-3">
+            <label class="col-sm-2 col-form-label">{{ entry_status }}</label>
+            <div class="col-sm-10">
+              <div class="form-check form-switch form-switch-lg">
+                <input type="hidden" name="shipping_woot_status" value="0"/>
+                <input type="checkbox" name="shipping_woot_status" value="1" id="input-status" class="form-check-input"{% if shipping_woot_status %} checked{% endif %}/>
+              </div>
+            </div>
+          </div>
+          <div class="row mb-3">
+            <label for="input-sort-order" class="col-sm-2 col-form-label">{{ entry_sort_order }}</label>
+            <div class="col-sm-10">
+              <input type="text" name="shipping_woot_sort_order" value="{{ shipping_woot_sort_order }}" placeholder="{{ entry_sort_order }}" id="input-sort-order" class="form-control"/>
+            </div>
+          </div>
+        </div>
+      </div>
+    </form>
+    {% endif %}
+  </div>
+</div>
+<script src="/extension/woot/admin/view/javascript/woot/services.js"></script>
+<script type="text/javascript">
+$(document).ready(function() {
+    // Initialize connection handlers
+    WootConnection.init({
+        translations: {
+            text_connecting: '{{ text_connecting }}',
+            button_connect: '{{ button_connect }}',
+            text_confirm_disconnect: '{{ text_confirm_disconnect }}'
+        }
+    });
+
+    {% if shipping_woot_connected %}
+    // Initialize services module
+    var initialServices = {};
+    {% if shipping_woot_services is iterable %}
+    var _loadedServices = {{ shipping_woot_services|json_encode|raw }};
+    if (_loadedServices && typeof _loadedServices === 'object' && !Array.isArray(_loadedServices)) {
+        initialServices = _loadedServices;
+    }
+    {% endif %}
+
+    WootServices.init({
+        servicesUrl: $('#services-container').data('url'),
+        initialServices: initialServices,
+        translations: {
+            text_select_service: '{{ text_select_service }}',
+            text_locker: '{{ text_locker }}',
+            text_door: '{{ text_door }}',
+            text_quotation: '{{ text_quotation }}',
+            text_fixed: '{{ text_fixed }}',
+            text_custom_name_placeholder: '{{ text_custom_name_placeholder }}'
+        }
+    });
+
+    // Initialize sender address module
+    WootSenderAddress.init({
+        addressesUrl: $('#sender-container').data('url'),
+        initialAddressId: '{{ shipping_woot_sender_address_id }}',
+        translations: {
+            text_select_address: '{{ text_select_address }}'
+        }
+    });
+
+    // Initialize default parcel module
+    WootDefaultParcel.init({
+        parcelsUrl: $('#parcel-container').data('url'),
+        initialParcelId: '{{ shipping_woot_default_parcel_id }}',
+        translations: {
+            text_select_parcel: '{{ text_select_parcel }}',
+            text_envelope: '{{ text_envelope }}',
+            text_package: '{{ text_package }}',
+            text_yes: '{{ text_yes }}',
+            text_no: '{{ text_no }}',
+            text_na: '{{ text_na }}'
+        }
+    });
+
+    // Reload addresses button
+    $('#button-reload-addresses').on('click', function() {
+        var $btn = $(this);
+        $btn.find('i').addClass('fa-spin');
+        $btn.prop('disabled', true);
+
+        WootSenderAddress.reload();
+
+        // Re-enable button after a short delay
+        setTimeout(function() {
+            $btn.find('i').removeClass('fa-spin');
+            $btn.prop('disabled', false);
+        }, 1000);
+    });
+
+    // Reload parcels button
+    $('#button-reload-parcels').on('click', function() {
+        var $btn = $(this);
+        $btn.find('i').addClass('fa-spin');
+        $btn.prop('disabled', true);
+
+        WootDefaultParcel.reload();
+
+        // Re-enable button after a short delay
+        setTimeout(function() {
+            $btn.find('i').removeClass('fa-spin');
+            $btn.prop('disabled', false);
+        }, 1000);
+    });
+
+    // Toggle Tax Class dropdown based on "Prices Include VAT" checkbox
+    function toggleTaxClass() {
+        var isVatIncluded = $('#input-price-includes-vat').is(':checked');
+        var $taxRow = $('#input-tax-class').closest('.row');
+
+        if (isVatIncluded) {
+            $taxRow.css('opacity', '0.5');
+            $('#input-tax-class').css('pointer-events', 'none');
+        } else {
+            $taxRow.css('opacity', '1');
+            $('#input-tax-class').css('pointer-events', 'auto');
+        }
+    }
+
+    $('#input-price-includes-vat').on('change', toggleTaxClass);
+    toggleTaxClass(); // Run on page load
+    {% endif %}
+});
+</script>
+{{ footer }}

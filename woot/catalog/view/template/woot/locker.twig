@@ -1,0 +1,52 @@
+<div id="woot-locker-modal" class="modal fade" tabindex="-1" aria-labelledby="woot-locker-modal-label" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="woot-locker-modal-label">{{ heading_title }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ button_close }}"></button>
+      </div>
+      <div class="modal-body">
+        {# TODO: Implement locker selection UI #}
+        <div class="alert alert-info">
+          <i class="fa-solid fa-info-circle"></i> Locker selection functionality coming soon.
+        </div>
+        {#
+        <div class="row mb-3">
+          <div class="col-md-6">
+            <label class="form-label">{{ text_select_county }}</label>
+            <select id="woot-locker-county" class="form-select">
+              <option value="">{{ text_select_county }}</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">{{ text_select_city }}</label>
+            <select id="woot-locker-city" class="form-select" disabled>
+              <option value="">{{ text_select_city }}</option>
+            </select>
+          </div>
+        </div>
+        <div class="mb-3">
+          <div class="input-group">
+            <input type="text" id="woot-locker-search" class="form-control" placeholder="{{ text_search }}"/>
+            <button type="button" class="btn btn-outline-secondary" id="woot-locker-search-btn">
+              <i class="fa-solid fa-search"></i>
+            </button>
+            <button type="button" class="btn btn-outline-secondary" id="woot-locker-location-btn" title="{{ text_use_location }}">
+              <i class="fa-solid fa-location-crosshairs"></i>
+            </button>
+          </div>
+        </div>
+        <div id="woot-locker-list" class="list-group">
+          <div class="text-center text-muted py-4">
+            <p>{{ text_no_results }}</p>
+          </div>
+        </div>
+        #}
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ button_close }}</button>
+        <button type="button" class="btn btn-primary" id="woot-locker-confirm" disabled>{{ button_select }}</button>
+      </div>
+    </div>
+  </div>
+</div>

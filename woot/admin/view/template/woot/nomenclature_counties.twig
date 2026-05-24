@@ -1,0 +1,226 @@
+{{ header }}{{ column_left }}
+<div id="content">
+    <div class="page-header">
+        <div class="container-fluid">
+            <div class="float-end">
+                <button type="button" id="button-sync" class="btn btn-primary" data-url="{{ sync_url }}"{% if not woot_country_id %} disabled{% endif %}>
+                    <i class="fa-solid fa-sync"></i> {{ button_sync }}
+                </button>
+                <button type="button" id="button-auto-map" class="btn btn-info" data-url="{{ auto_map_url }}"{% if not woot_country_id %} disabled{% endif %}>
+                    <i class="fa-solid fa-magic"></i> {{ button_auto_map }}
+                </button>
+            </div>
+            <h1>{{ heading_title_counties }}</h1>
+            <ol class="breadcrumb">
+                {% for breadcrumb in breadcrumbs %}
+                <li class="breadcrumb-item"><a href="{{ breadcrumb.href }}">{{ breadcrumb.text }}</a></li>
+                {% endfor %}
+            </ol>
+        </div>
+    </div>
+    <div class="container-fluid">
+        <div class="card">
+            <div class="card-header">
+                <i class="fa-solid fa-map"></i> {{ heading_title_counties }}
+            </div>
+            <div class="card-body">
+                {% if woot_countries %}
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label">{{ entry_woot_country }}</label>
+                        <select id="filter-country" class="form-select">
+                            <option value="">{{ text_select_country }}</option>
+                            {% for country in woot_countries %}
+                            <option value="{{ country.woot_country_id }}"{% if woot_country_id == country.woot_country_id %} selected{% endif %}>
+                                {{ country.name }} ({{ country.code }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                {% if woot_country_id %}
+                <div class="alert alert-info">
+                    <i class="fa-solid fa-info-circle"></i> {{ text_mapping_hint }}
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover">
+                        <thead>
+                            <tr>
+                                <td class="text-center" style="width: 80px;">{{ column_woot_id }}</td>
+                                <td class="text-start">{{ column_name }}</td>
+                                <td class="text-center" style="width: 80px;">{{ column_code }}</td>
+                                <td class="text-start" style="width: 250px;">{{ column_oc_zone }}</td>
+                                <td class="text-center" style="width: 150px;">{{ column_date_synced }}</td>
+                                <td class="text-center" style="width: 100px;">{{ column_action }}</td>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if woot_counties %}
+                            {% for county in woot_counties %}
+                            <tr>
+                                <td class="text-center">{{ county.woot_county_id }}</td>
+                                <td class="text-start">{{ county.name }}</td>
+                                <td class="text-center"><span class="badge bg-secondary">{{ county.code }}</span></td>
+                                <td class="text-start">
+                                    <select class="form-select form-select-sm county-mapping"
+                                            data-woot-county-id="{{ county.woot_county_id }}"
+                                            data-save-url="{{ save_mapping_url }}">
+                                        <option value="">{{ text_not_mapped }}</option>
+                                        {% for zone in oc_zones %}
+                                        <option value="{{ zone.zone_id }}"{% if county.oc_zone_id == zone.zone_id %} selected{% endif %}>
+                                            {{ zone.name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </td>
+                                <td class="text-center">{{ county.date_synced }}</td>
+                                <td class="text-center">
+                                    <a href="{{ cities_url }}&woot_country_id={{ woot_country_id }}&woot_county_id={{ county.woot_county_id }}" class="btn btn-sm btn-outline-primary" title="{{ button_view_cities }}">
+                                        <i class="fa-solid fa-city"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            {% else %}
+                            <tr>
+                                <td class="text-center" colspan="6">{{ text_no_results }}</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="row">
+                    <div class="col-sm-6 text-start">{{ pagination }}</div>
+                    <div class="col-sm-6 text-end">{{ results }}</div>
+                </div>
+                {% else %}
+                <div class="alert alert-warning">
+                    <i class="fa-solid fa-exclamation-triangle"></i> {{ text_select_country }}
+                </div>
+                {% endif %}
+                {% else %}
+                <div class="alert alert-warning">
+                    <i class="fa-solid fa-exclamation-triangle"></i> {{ text_no_mapped_countries|format(countries_url)|raw }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    var userToken = '{{ user_token }}';
+
+    // Filter by country
+    $('#filter-country').on('change', function() {
+        var countryId = $(this).val();
+        if (countryId) {
+            window.location.href = 'index.php?route=extension/woot/woot/nomenclature.counties&user_token=' + userToken + '&woot_country_id=' + countryId;
+        } else {
+            window.location.href = 'index.php?route=extension/woot/woot/nomenclature.counties&user_token=' + userToken;
+        }
+    });
+
+    // Sync counties
+    $('#button-sync').on('click', function() {
+        var button = $(this);
+        var url = button.data('url');
+        var countryId = $('#filter-country').val();
+
+        if (!countryId) {
+            alert('{{ error_country_required }}');
+            return;
+        }
+
+        button.prop('disabled', true).find('i').removeClass('fa-sync').addClass('fa-spinner fa-spin');
+
+        $.ajax({
+            url: url,
+            type: 'POST',
+            data: { woot_country_id: countryId },
+            dataType: 'json',
+            success: function(json) {
+                if (json.success) {
+                    alert(json.success);
+                    location.reload();
+                }
+                if (json.error) {
+                    alert(json.error);
+                }
+            },
+            error: function() {
+                alert('Error communicating with server');
+            },
+            complete: function() {
+                button.prop('disabled', false).find('i').removeClass('fa-spinner fa-spin').addClass('fa-sync');
+            }
+        });
+    });
+
+    // Auto-map counties
+    $('#button-auto-map').on('click', function() {
+        var button = $(this);
+        var url = button.data('url');
+        var countryId = $('#filter-country').val();
+
+        if (!countryId) {
+            alert('{{ error_country_required }}');
+            return;
+        }
+
+        button.prop('disabled', true).find('i').removeClass('fa-magic').addClass('fa-spinner fa-spin');
+
+        $.ajax({
+            url: url,
+            type: 'POST',
+            data: { woot_country_id: countryId },
+            dataType: 'json',
+            success: function(json) {
+                if (json.success) {
+                    alert(json.success);
+                    location.reload();
+                }
+                if (json.error) {
+                    alert(json.error);
+                }
+            },
+            error: function() {
+                alert('Error communicating with server');
+            },
+            complete: function() {
+                button.prop('disabled', false).find('i').removeClass('fa-spinner fa-spin').addClass('fa-magic');
+            }
+        });
+    });
+
+    // Save county mapping on change
+    $('.county-mapping').on('change', function() {
+        var select = $(this);
+        var url = select.data('save-url');
+        var woot_county_id = select.data('woot-county-id');
+        var oc_zone_id = select.val();
+
+        $.ajax({
+            url: url,
+            type: 'POST',
+            data: {
+                woot_county_id: woot_county_id,
+                oc_zone_id: oc_zone_id
+            },
+            dataType: 'json',
+            success: function(json) {
+                if (json.error) {
+                    alert(json.error);
+                }
+            },
+            error: function() {
+                alert('Error saving mapping');
+            }
+        });
+    });
+});
+</script>
+{{ footer }}

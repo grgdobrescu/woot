@@ -1,0 +1,441 @@
+{# Woot Location Picker Modal #}
+<style>
+#woot-location-modal {
+  z-index: 1070 !important;
+}
+.woot-location-backdrop {
+  z-index: 1065 !important;
+}
+
+/* Mobile fullscreen */
+@media (max-width: 768px) {
+  #woot-location-modal .modal-dialog {
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    margin: 0;
+  }
+  #woot-location-modal .modal-content {
+    height: 100%;
+    border: 0;
+    border-radius: 0;
+  }
+  #woot-location-modal .modal-body {
+    height: calc(100% - 56px);
+    padding: 0;
+  }
+  #woot-location-modal #woot-location-iframe {
+    height: 100% !important;
+  }
+}
+</style>
+<div id="woot-location-modal" class="modal fade" tabindex="-1" aria-labelledby="woot-location-modal-label" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="woot-location-modal-label">{{ text_select_location }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ button_close }}"></button>
+      </div>
+      <div class="modal-body p-0">
+        <iframe id="woot-location-iframe" src="" style="width: 100%; height: 70vh; border: none;" allow="geolocation"></iframe>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# Location Details Card (shown after selection) #}
+<div id="woot-location-details" class="card mt-3 d-none">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-start">
+      <div>
+        <h6 class="mb-1" id="woot-location-name"></h6>
+        <p class="mb-1 text-muted" id="woot-location-address"></p>
+        <small class="text-muted" id="woot-location-city-county"></small>
+      </div>
+      <button type="button" class="btn btn-outline-primary btn-sm" id="woot-change-location">
+        <i class="fa-solid fa-edit"></i> {{ button_change }}
+      </button>
+    </div>
+  </div>
+</div>
+
+{# Hidden fields to store location data #}
+<input type="hidden" name="woot_location_id" id="woot-location-id" value="{{ woot_location_id }}"/>
+<input type="hidden" name="woot_location_name" id="woot-location-name-field" value="{{ woot_location_name }}"/>
+<input type="hidden" name="woot_location_address" id="woot-location-address-field" value="{{ woot_location_address }}"/>
+<input type="hidden" name="woot_location_city" id="woot-location-city-field" value="{{ woot_location_city }}"/>
+<input type="hidden" name="woot_location_county" id="woot-location-county-field" value="{{ woot_location_county }}"/>
+<input type="hidden" name="woot_location_courier" id="woot-location-courier-field" value="{{ woot_location_courier }}"/>
+
+<script>
+(function() {
+    'use strict';
+
+    var WootLocationPicker = {
+        mapUrl: '{{ locations_map_url }}',
+        saveUrl: '{{ save_location_url }}',
+        modal: null,
+        iframe: null,
+        currentShippingCode: null,
+        translations: {
+            text_select_location: '{{ text_select_location|e('js') }}',
+            button_select_location: '{{ button_select_location|e('js') }}',
+            text_location_required: '{{ text_location_required|e('js') }}'
+        },
+
+        init: function() {
+            var self = this;
+            this.modal = document.getElementById('woot-location-modal');
+            this.iframe = document.getElementById('woot-location-iframe');
+
+            // Listen for postMessage from iframe
+            window.addEventListener('message', function(event) {
+                self.handleMapMessage(event);
+            });
+
+            // Change location button
+            var changeBtn = document.getElementById('woot-change-location');
+            if (changeBtn) {
+                changeBtn.addEventListener('click', function() {
+                    self.openLocationMap();
+                });
+            }
+
+            // Initialize Bootstrap modal
+            if (this.modal && typeof bootstrap !== 'undefined') {
+                this.bsModal = new bootstrap.Modal(this.modal);
+            }
+
+            // Hook into shipping method selection
+            this.hookShippingMethodSelection();
+
+            // Check if location was previously selected
+            this.checkExistingLocation();
+
+            // Track current shipping code from page (for confirm validation)
+            var savedCode = $('#input-shipping-code').val();
+            if (savedCode) {
+                this.currentShippingCode = savedCode;
+            }
+        },
+
+        hookShippingMethodSelection: function() {
+            var self = this;
+
+            // Observer to watch for shipping modal being added to DOM
+            var observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    mutation.addedNodes.forEach(function(node) {
+                        if (node.id === 'modal-shipping') {
+                            self.enhanceShippingModal(node);
+                        }
+                    });
+                });
+            });
+
+            observer.observe(document.body, { childList: true });
+
+            // Also listen for shipping method changes within the modal
+            $(document).on('change', '#form-shipping-method input[name="shipping_method"]', function() {
+                self.onShippingMethodChange($(this).val());
+            });
+
+        },
+
+        enhanceShippingModal: function(modal) {
+            var self = this;
+
+            // Find all woot shipping methods and check if they need location selection
+            $(modal).find('input[name="shipping_method"]').each(function() {
+                var code = $(this).val();
+                if (self.isWootLocationMethod(code)) {
+                    self.addLocationButton($(this));
+                }
+            });
+
+            // Trigger for initially selected method
+            var selectedMethod = $(modal).find('input[name="shipping_method"]:checked').val();
+            if (selectedMethod) {
+                self.onShippingMethodChange(selectedMethod);
+            }
+        },
+
+        isWootLocationMethod: function(code) {
+            if (!code || !code.startsWith('woot.')) return false;
+
+            // Check delivery_type from shipping_methods data
+            var methods = window.wootShippingMethods || {};
+            var parts = code.split('.');
+            if (parts.length >= 2) {
+                var methodKey = parts[1];
+                if (methods[methodKey] && methods[methodKey].delivery_type === 'location') {
+                    return true;
+                }
+            }
+            return false;
+        },
+
+        getCourierId: function(code) {
+            if (!code || !code.startsWith('woot.')) return '';
+
+            var methods = window.wootShippingMethods || {};
+            var parts = code.split('.');
+            if (parts.length >= 2) {
+                var methodKey = parts[1];
+                if (methods[methodKey] && methods[methodKey].courier_id) {
+                    return methods[methodKey].courier_id;
+                }
+            }
+            return '';
+        },
+
+        addLocationButton: function($radio) {
+            var self = this;
+            var $container = $radio.closest('.form-check');
+
+            // Check if button already exists
+            if ($container.find('.woot-select-location-btn').length > 0) return;
+
+            // Create the select location button
+            var $btn = $('<button type="button" class="btn btn-sm btn-outline-primary ms-2 woot-select-location-btn">' +
+                '<i class="fa-solid fa-map-marker-alt"></i> ' + this.translations.button_select_location +
+                '</button>');
+
+            $btn.on('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                // Select this shipping method
+                $radio.prop('checked', true).trigger('change');
+                self.currentShippingCode = $radio.val();
+                self.openLocationMap();
+            });
+
+            // Add button after the label
+            $container.find('label').after($btn);
+
+            // If location is already selected, show details
+            if (this.hasLocationSelected()) {
+                this.showLocationInModal($container);
+            }
+        },
+
+        showLocationInModal: function($container) {
+            var locationName = $('#woot-location-name-field').val();
+            var locationAddress = $('#woot-location-address-field').val();
+
+            if (locationName) {
+                // Remove existing location info
+                $container.find('.woot-location-info').remove();
+
+                var $info = $('<div class="woot-location-info mt-2 small text-muted">' +
+                    '<i class="fa-solid fa-location-dot"></i> ' +
+                    '<strong>' + this.escapeHtml(locationName) + '</strong>' +
+                    (locationAddress ? '<br><span class="ms-3">' + this.escapeHtml(locationAddress) + '</span>' : '') +
+                    '</div>');
+
+                $container.append($info);
+            }
+        },
+
+        onShippingMethodChange: function(code) {
+            var self = this;
+            var previousCode = this.currentShippingCode;
+            this.currentShippingCode = code;
+
+            // Hide all location info first
+            $('.woot-location-info').hide();
+
+            // Reset location when switching between different shipping methods
+            if (previousCode && previousCode !== code) {
+                var wasLocationMethod = this.isWootLocationMethod(previousCode);
+                var isLocationMethod = this.isWootLocationMethod(code);
+
+                // Reset if:
+                // 1. Switching from location method to non-location method
+                // 2. Switching between two different location methods (different services may have different couriers/lockers)
+                if (wasLocationMethod && (!isLocationMethod || (isLocationMethod && previousCode !== code))) {
+                    this.resetLocation();
+                }
+            }
+
+            if (this.isWootLocationMethod(code)) {
+                // Show location button and info for selected method
+                var $selectedContainer = $('input[name="shipping_method"][value="' + code + '"]').closest('.form-check');
+                $selectedContainer.find('.woot-select-location-btn').show();
+                $selectedContainer.find('.woot-location-info').show();
+
+                // Show the location details card outside the modal if location is selected
+                if (this.hasLocationSelected()) {
+                    this.showLocationDetails();
+                }
+            } else {
+                // Hide location details for non-location methods
+                $('#woot-location-details').addClass('d-none');
+            }
+        },
+
+        resetLocation: function() {
+            // Clear hidden fields
+            $('#woot-location-id').val('');
+            $('#woot-location-name-field').val('');
+            $('#woot-location-address-field').val('');
+            $('#woot-location-city-field').val('');
+            $('#woot-location-county-field').val('');
+            $('#woot-location-courier-field').val('');
+
+            // Hide location details card
+            $('#woot-location-details').addClass('d-none');
+
+            // Remove location info from shipping modal
+            $('.woot-location-info').remove();
+
+            // Clear session via AJAX
+            $.ajax({
+                url: this.saveUrl,
+                type: 'POST',
+                data: {
+                    location_id: '',
+                    location_name: '',
+                    location_address: '',
+                    location_city: '',
+                    location_county: '',
+                    location_courier: ''
+                },
+                dataType: 'json'
+            });
+        },
+
+        openLocationMap: function() {
+            if (this.iframe && this.mapUrl) {
+                // Clear iframe first to force fresh load
+                this.iframe.src = 'about:blank';
+
+                var url = this.mapUrl;
+                // Add courier_id parameter if available
+                var courierId = this.getCourierId(this.currentShippingCode);
+                if (courierId) {
+                    url += (url.indexOf('?') === -1 ? '?' : '&') + 'courier_id=' + encodeURIComponent(courierId);
+                }
+                // Add cache-busting parameter to force fresh load
+                url += (url.indexOf('?') === -1 ? '?' : '&') + '_t=' + Date.now();
+
+                // Set new URL after a brief delay to ensure clean state
+                var iframe = this.iframe;
+                setTimeout(function() {
+                    iframe.src = url;
+                }, 50);
+            }
+            if (this.bsModal) {
+                this.bsModal.show();
+                // Ensure our modal and its backdrop are above the shipping modal
+                setTimeout(function() {
+                    var backdrop = document.querySelector('.modal-backdrop:last-child');
+                    if (backdrop) {
+                        backdrop.style.zIndex = '1065';
+                    }
+                }, 10);
+            }
+        },
+
+        closeLocationMap: function() {
+            if (this.bsModal) {
+                this.bsModal.hide();
+            }
+            if (this.iframe) {
+                this.iframe.src = '';
+            }
+        },
+
+        handleMapMessage: function(event) {
+            if (event.data && event.data.location) {
+                var location = event.data.location;
+
+                // Store location data
+                $('#woot-location-id').val(location.id);
+                $('#woot-location-name-field').val(location.name);
+                $('#woot-location-address-field').val(location.address);
+                $('#woot-location-city-field').val(location.city_name);
+                $('#woot-location-county-field').val(location.county_name);
+                $('#woot-location-courier-field').val(location.courier_uid || '');
+
+                // Update UI
+                this.showLocationDetails();
+
+                // Update location info in shipping modal
+                var $selectedContainer = $('input[name="shipping_method"]:checked').closest('.form-check');
+                this.showLocationInModal($selectedContainer);
+
+                // Save to session
+                this.saveLocationToSession(location);
+
+                // Close modal
+                this.closeLocationMap();
+            }
+        },
+
+        showLocationDetails: function() {
+            var name = $('#woot-location-name-field').val();
+            var address = $('#woot-location-address-field').val();
+            var city = $('#woot-location-city-field').val();
+            var county = $('#woot-location-county-field').val();
+
+            if (name) {
+                $('#woot-location-name').text(name);
+                $('#woot-location-address').text(address);
+                $('#woot-location-city-county').text([city, county].filter(Boolean).join(', '));
+                $('#woot-location-details').removeClass('d-none');
+            }
+        },
+
+        hasLocationSelected: function() {
+            return $('#woot-location-id').val() !== '';
+        },
+
+        checkExistingLocation: function() {
+            if (this.hasLocationSelected()) {
+                this.showLocationDetails();
+            }
+        },
+
+        saveLocationToSession: function(location) {
+            $.ajax({
+                url: this.saveUrl,
+                type: 'POST',
+                data: {
+                    location_id: location.id,
+                    location_name: location.name,
+                    location_address: location.address,
+                    location_city: location.city_name,
+                    location_county: location.county_name,
+                    location_courier: location.courier_uid || ''
+                },
+                dataType: 'json'
+            });
+        },
+
+        escapeHtml: function(text) {
+            var div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    };
+
+    // Make functions globally available for iframe and external use
+    window.wootCloseLocationsMap = function() {
+        WootLocationPicker.closeLocationMap();
+    };
+
+    window.wootResetLocation = function() {
+        WootLocationPicker.resetLocation();
+    };
+
+    // Initialize when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            WootLocationPicker.init();
+        });
+    } else {
+        WootLocationPicker.init();
+    }
+})();
+</script>

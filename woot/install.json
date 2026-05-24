@@ -1,0 +1,7 @@
+{
+  "name": "Woot",
+  "description": "Integrare Woot pentru OpenCart. Cotații de livrare în timp real, generare AWB, livrare la adresă sau punct de ridicare (easybox/locker).",
+  "version": "1.0.0",
+  "author": "Woot",
+  "link": "https://pro.woot.ro"
+}

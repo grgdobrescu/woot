@@ -1,0 +1,131 @@
+<div class="card mb-3" id="woot-shipping-card">
+  <div class="card-header d-flex justify-content-between align-items-center py-2">
+    <span><i class="fa-solid fa-truck"></i> {{ heading_title }}</span>
+    {% if has_awb %}
+      <span class="badge bg-success">{{ text_awb }}: {{ awb_number }}</span>
+    {% else %}
+      <span class="badge bg-secondary">{{ text_no_awb }}</span>
+    {% endif %}
+  </div>
+  <div class="card-body py-2">
+    <div class="d-flex justify-content-between align-items-center">
+      {# Left side - Info #}
+      <div class="d-flex gap-4">
+        {# Service #}
+        <div>
+          <small class="text-muted">{{ text_service }}</small>
+          <div><strong>{{ service_name }}</strong></div>
+        </div>
+        {# Delivery Type #}
+        <div>
+          <small class="text-muted">{% if delivery_type == 'location' %}{{ text_location_delivery }}{% else %}{{ text_door_delivery }}{% endif %}</small>
+          {% if has_location %}
+            <div><strong>{{ location_name }}</strong></div>
+          {% else %}
+            <div><strong>-</strong></div>
+          {% endif %}
+        </div>
+        {% if has_location %}
+        {# Location Address #}
+        <div>
+          <small class="text-muted">
+            <i class="fa-solid fa-{% if location_type == 'locker' %}box{% else %}store{% endif %}"></i>
+            {% if location_type == 'locker' %}{{ text_locker }}{% else %}{{ text_shop }}{% endif %}
+          </small>
+          <div class="small">{{ location_full_address }}</div>
+        </div>
+        {% endif %}
+      </div>
+      {# Right side - Buttons #}
+      <div class="d-flex gap-2">
+        {% if not has_awb %}
+          <button type="button" class="btn btn-primary btn-sm" data-order-id="{{ order_id }}" data-url="{{ generate_awb_url }}" id="btn-generate-awb">
+            <i class="fa-solid fa-file-invoice me-1"></i> {{ button_generate_awb }}
+          </button>
+        {% else %}
+          <a href="{{ print_a4_url }}" target="_blank" class="btn btn-outline-primary btn-sm">
+            <i class="fa-solid fa-print me-1"></i> {{ button_print_a4 }}
+          </a>
+          <a href="{{ print_a6_url }}" target="_blank" class="btn btn-outline-primary btn-sm">
+            <i class="fa-solid fa-print me-1"></i> {{ button_print_a6 }}
+          </a>
+          {% if view_order_url %}
+          <a href="{{ view_order_url }}" target="_blank" class="btn btn-outline-secondary btn-sm">
+            <i class="fa-solid fa-external-link me-1"></i> {{ button_view_order }}
+          </a>
+          {% endif %}
+          <button type="button" class="btn btn-outline-danger btn-sm" data-url="{{ cancel_awb_url }}" id="btn-cancel-awb">
+            <i class="fa-solid fa-ban me-1"></i> {{ button_cancel_awb }}
+          </button>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var btnGenerateAwb = document.getElementById('btn-generate-awb');
+  if (btnGenerateAwb) {
+    btnGenerateAwb.addEventListener('click', function() {
+      var btn = this;
+      var url = btn.getAttribute('data-url');
+
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> {{ button_generate_awb }}';
+
+      fetch(url, {
+        method: 'GET',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          location.reload();
+        } else {
+          alert(data.error || 'Failed to generate AWB');
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fa-solid fa-file-invoice me-1"></i> {{ button_generate_awb }}';
+        }
+      })
+      .catch(error => {
+        alert('Error: ' + error.message);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-file-invoice me-1"></i> {{ button_generate_awb }}';
+      });
+    });
+  }
+
+  var btnCancelAwb = document.getElementById('btn-cancel-awb');
+  if (btnCancelAwb) {
+    btnCancelAwb.addEventListener('click', function() {
+      if (!confirm('{{ text_confirm_cancel }}')) {
+        return;
+      }
+
+      var btn = this;
+      var url = btn.getAttribute('data-url');
+
+      btn.disabled = true;
+
+      fetch(url, {
+        method: 'GET',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          location.reload();
+        } else {
+          alert(data.error || 'Failed to cancel AWB');
+          btn.disabled = false;
+        }
+      })
+      .catch(error => {
+        alert('Error: ' + error.message);
+        btn.disabled = false;
+      });
+    });
+  }
+});
+</script>

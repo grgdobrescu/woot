@@ -1,0 +1,281 @@
+<script>
+/**
+ * Woot City Dropdown for Shipping Address
+ *
+ * Replaces the city text input with a dropdown when the selected zone has Woot cities mapped.
+ */
+(function() {
+    'use strict';
+
+    // Decode HTML entities in URLs (Twig escapes & to &amp;)
+    function decodeHtml(html) {
+        var txt = document.createElement('textarea');
+        txt.innerHTML = html;
+        return txt.value;
+    }
+
+    var wootCity = {
+        getCitiesUrl: decodeHtml('{{ get_cities_url }}'),
+        hasWootCitiesUrl: decodeHtml('{{ has_woot_cities_url }}'),
+        textSelectCity: '{{ text_select_city }}',
+        textLoading: '{{ text_loading }}',
+        textNoCities: '{{ text_no_cities }}',
+        currentWootCityId: {{ woot_city_id }},
+        isInitialized: false,
+
+        init: function() {
+            if (this.isInitialized) return;
+            this.isInitialized = true;
+
+            // Wait for DOM to be ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', this.setup.bind(this));
+            } else {
+                this.setup();
+            }
+        },
+
+        setup: function() {
+            var self = this;
+
+            // Find the shipping address form elements
+            // In OpenCart 4, the shipping address zone select has name="shipping_zone_id"
+            var zoneSelect = document.querySelector('#input-shipping-zone');
+
+            if (!zoneSelect) {
+                // Try alternative selectors
+                zoneSelect = document.querySelector('select[name="shipping_zone_id"]');
+            }
+
+            if (!zoneSelect) {
+                zoneSelect = document.querySelector('select[name="zone_id"]');
+            }
+
+            if (!zoneSelect) {
+                setTimeout(function() { self.setup(); }, 500);
+                return;
+            }
+
+            // Listen for zone changes
+            zoneSelect.addEventListener('change', function() {
+                self.onZoneChange(this.value);
+            });
+
+            // Check initial state if zone is already selected
+            if (zoneSelect.value) {
+                this.onZoneChange(zoneSelect.value);
+            }
+
+            // Also listen for form submissions to include woot_city_id
+            this.attachFormListener();
+        },
+
+        onZoneChange: function(zoneId) {
+            var self = this;
+
+            if (!zoneId) {
+                this.restoreTextInput();
+                return;
+            }
+
+            // Check if this zone has Woot cities
+            this.checkHasWootCities(zoneId, function(hasCities) {
+                if (hasCities) {
+                    self.loadCities(zoneId);
+                } else {
+                    self.restoreTextInput();
+                }
+            });
+        },
+
+        checkHasWootCities: function(zoneId, callback) {
+            var url = this.hasWootCitiesUrl + '&zone_id=' + zoneId;
+
+            fetch(url)
+                .then(function(response) { return response.json(); })
+                .then(function(data) {
+                    callback(data.has_cities === true);
+                })
+                .catch(function() {
+                    callback(false);
+                });
+        },
+
+        loadCities: function(zoneId) {
+            var self = this;
+            var cityInput = this.getCityInput();
+
+            if (!cityInput) return;
+
+            // Show loading state
+            this.showLoading(cityInput);
+
+            var url = this.getCitiesUrl + '&zone_id=' + zoneId;
+
+            fetch(url)
+                .then(function(response) { return response.json(); })
+                .then(function(data) {
+                    if (data.cities && data.cities.length > 0) {
+                        self.convertToDropdown(cityInput, data.cities);
+                    } else {
+                        self.restoreTextInput();
+                    }
+                })
+                .catch(function() {
+                    self.restoreTextInput();
+                });
+        },
+
+        getCityInput: function() {
+            // Try various selectors for the city input
+            var input = document.querySelector('#input-shipping-city');
+
+            if (!input) {
+                input = document.querySelector('input[name="shipping_city"]');
+            }
+
+            if (!input) {
+                input = document.querySelector('input[name="city"]');
+            }
+
+            return input;
+        },
+
+        showLoading: function(cityInput) {
+            cityInput.disabled = true;
+            cityInput.placeholder = this.textLoading;
+        },
+
+        convertToDropdown: function(cityInput, cities) {
+            var self = this;
+
+            // Create select element
+            var select = document.createElement('select');
+            select.name = cityInput.name || 'shipping_city';
+            select.id = cityInput.id;
+            select.className = cityInput.className;
+            select.required = cityInput.required;
+
+            // Add placeholder option
+            var placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = this.textSelectCity;
+            select.appendChild(placeholder);
+
+            // Add city options
+            cities.forEach(function(city) {
+                var option = document.createElement('option');
+                option.value = city.name;
+                option.textContent = city.name;
+                option.dataset.wootCityId = city.woot_city_id;
+
+                // Pre-select if matches current value or stored woot_city_id
+                if (self.currentWootCityId && city.woot_city_id == self.currentWootCityId) {
+                    option.selected = true;
+                } else if (cityInput.value && city.name.toLowerCase() === cityInput.value.toLowerCase()) {
+                    option.selected = true;
+                }
+
+                select.appendChild(option);
+            });
+
+            // Add hidden field for woot_city_id
+            var hiddenField = document.createElement('input');
+            hiddenField.type = 'hidden';
+            hiddenField.name = 'woot_city_id';
+            hiddenField.id = 'input-woot-city-id';
+            hiddenField.value = '';
+
+            // Update hidden field when selection changes
+            select.addEventListener('change', function() {
+                var selected = this.options[this.selectedIndex];
+                if (selected && selected.dataset.wootCityId) {
+                    hiddenField.value = selected.dataset.wootCityId;
+
+                    // Also update postal code if there's a postcode field
+                    var postcodeField = document.querySelector('#input-shipping-postcode, input[name="postcode"]');
+                    if (postcodeField && selected.dataset.postalCode) {
+                        postcodeField.value = selected.dataset.postalCode;
+                    }
+                } else {
+                    hiddenField.value = '';
+                }
+            });
+
+            // Replace input with select
+            cityInput.parentNode.insertBefore(select, cityInput);
+            cityInput.parentNode.insertBefore(hiddenField, cityInput.nextSibling);
+            cityInput.style.display = 'none';
+            cityInput.dataset.wootOriginal = 'true';
+
+            // Trigger change to set initial woot_city_id
+            select.dispatchEvent(new Event('change'));
+        },
+
+        restoreTextInput: function() {
+            var cityInput = this.getCityInput();
+
+            if (!cityInput) return;
+
+            // Remove the dropdown if it exists (try both possible names)
+            var select = cityInput.parentNode.querySelector('select[name="shipping_city"]');
+            if (!select) {
+                select = cityInput.parentNode.querySelector('select[name="city"]');
+            }
+            if (select) {
+                select.remove();
+            }
+
+            // Remove hidden field
+            var hiddenField = document.querySelector('#input-woot-city-id');
+            if (hiddenField) {
+                hiddenField.remove();
+            }
+
+            // Show original input
+            cityInput.style.display = '';
+            cityInput.disabled = false;
+            cityInput.placeholder = '';
+        },
+
+        attachFormListener: function() {
+            var self = this;
+
+            // Find shipping address form
+            var form = document.querySelector('#form-shipping-address, form[action*="shipping_address"]');
+
+            if (!form) return;
+
+            form.addEventListener('submit', function(e) {
+                // Ensure woot_city_id is included if dropdown is active
+                var hiddenField = document.querySelector('#input-woot-city-id');
+                var select = document.querySelector('select[name="city"]');
+
+                if (select && hiddenField) {
+                    var selected = select.options[select.selectedIndex];
+                    if (selected && selected.dataset.wootCityId) {
+                        hiddenField.value = selected.dataset.wootCityId;
+                    }
+                }
+            });
+        }
+    };
+
+    // Initialize
+    wootCity.init();
+
+    // Re-initialize when checkout content is dynamically loaded (AJAX)
+    var observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.addedNodes.length) {
+                var hasZoneSelect = document.querySelector('#input-shipping-zone, select[name="zone_id"]');
+                if (hasZoneSelect && !wootCity.isInitialized) {
+                    wootCity.init();
+                }
+            }
+        });
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+})();
+</script>
